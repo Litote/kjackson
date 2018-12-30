@@ -1,0 +1,9 @@
+#remove this file
+org.litote.jackson.generator.model.InternalDataClass_Serializer
+org.litote.jackson.generator.model.InternalDataClass_Deserializer
+org.litote.jackson.generator.model.other.SimpleReferencedData_Serializer
+org.litote.jackson.generator.model.other.SimpleReferencedData_Deserializer
+org.litote.jackson.generator.model.TestData_Serializer
+org.litote.jackson.generator.model.TestData_Deserializer
+org.litote.jackson.generator.model.SimpleReferenced2Data_Serializer
+org.litote.jackson.generator.model.SimpleReferenced2Data_Deserializer
