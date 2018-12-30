@@ -57,7 +57,7 @@ import kotlin.reflect.KParameter
     "org.litote.jackson.data.JacksonData",
     "org.litote.jackson.data.JacksonDataRegistry"
 )
-internal class KMongoJacksonProcessor : KGenerator() {
+internal class KJacksonGeneratorProcessor : KGenerator() {
 
     private val AnnotatedProperty.jsonProperty: String
         get() = getAnnotation<JsonProperty>()?.value ?: simpleName.toString()
@@ -107,7 +107,8 @@ internal class KMongoJacksonProcessor : KGenerator() {
                         .map { e.getPackage() + "." + it }
                 }
                 .joinToString("\n"),
-            StandardLocation.CLASS_OUTPUT
+            StandardLocation.CLASS_OUTPUT,
+            false
         )
     }
 
