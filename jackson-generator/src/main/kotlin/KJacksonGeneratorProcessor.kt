@@ -39,6 +39,7 @@ import org.litote.kgenerator.AnnotatedClass
 import org.litote.kgenerator.AnnotatedClassSet
 import org.litote.kgenerator.AnnotatedProperty
 import org.litote.kgenerator.KGenerator
+import org.litote.kgenerator.ReflectedType
 import javax.annotation.processing.RoundEnvironment
 import javax.annotation.processing.SupportedAnnotationTypes
 import javax.lang.model.element.Element
@@ -112,6 +113,30 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
         )
     }
 
+    private fun buildReflectType(type: ReflectedType): CodeBlock =
+        if (type.isCollection && (type.type as? ParameterizedTypeName)?.typeArguments?.size == 1) {
+            CodeBlock.of(
+                "serializers.config.typeFactory.constructCollectionType(\n" +
+                        "%T::class.java,\n%L\n)",
+                (type.type as ParameterizedTypeName).rawType,
+                buildReflectType(typeArgumentReflected(type)!!)
+            )
+        } else if (type.isMap && (type.type as? ParameterizedTypeName)?.typeArguments?.size == 2) {
+            log(type.javaClass)
+            CodeBlock.of(
+                "serializers.config.typeFactory.constructMapType(\n" +
+                        "%T::class.java,\n%L,\n%L\n)",
+                (type.type as ParameterizedTypeName).rawType,
+                buildReflectType(typeArgumentReflected(type)!!),
+                buildReflectType(typeArgumentReflected(type, 1)!!)
+            )
+        } else {
+            CodeBlock.of(
+                "serializers.config.typeFactory.constructType(%T::class.java)",
+                (type.type as? ParameterizedTypeName)?.rawType ?: type.type
+            )
+        }
+
     private fun writeSerializer(element: AnnotatedClass) {
         val sourceClassName = element.asClassName()
         val className = generatedSerializer(element)
@@ -184,7 +209,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                             addStatement("val $fieldName = $fieldAccessor")
                             addStatement(
                                 if (nullable) {
-                                    "if($fieldName == null) { gen.writeNull() } else {"
+                                    "if($fieldName == null) { gen.writeNull() } else {\n"
                                 } else {
                                     ""
                                 } +
@@ -203,10 +228,16 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                                             "long",
                                             "float",
                                             "double" -> "gen.writeNumber($fieldName)"
-                                            else -> "serializers.defaultSerializeValue($fieldName, gen)"
+                                            else -> when {
+                                                e.isCollection || e.isMap -> "serializers.findTypedValueSerializer(\n" +
+                                                        "${buildReflectType(e.reflectedType)},\ntrue,\nnull\n" +
+                                                        ")\n" +
+                                                        ".serialize($fieldName, gen, serializers)"
+                                                else -> "serializers.defaultSerializeValue($fieldName, gen)"
+                                            }
                                         } +
                                         if (nullable) {
-                                            "}"
+                                            "\n}"
                                         } else {
                                             ""
                                         }
@@ -382,7 +413,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                         "if (currentToken == %T || currentToken == %T) { break } ",
                         ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_OBJECT"),
                         ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_ARRAY")
-                    )     
+                    )
                     .addStatement("val fieldName = currentName")
                     .addStatement("nextToken()")
                     //.addStatement("if (currentToken == null || fieldName == null) { break } ")
