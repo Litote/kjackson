@@ -268,7 +268,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
         fileBuilder.addImport("kotlin.reflect.full", "findParameterByName")
         fileBuilder.addImport("kotlin.reflect.full", "primaryConstructor")
 
-        val superclass = ClassName.bestGuess("com.fasterxml.jackson.databind.deser.std.StdDeserializer")
+        val superclass = ClassName.bestGuess("com.fasterxml.jackson.databind.JsonDeserializer")
             .parameterizedBy(sourceClassName)
 
         val moduleLoader = ClassName.bestGuess("org.litote.jackson.JacksonModuleServiceLoader")
@@ -283,7 +283,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
             .superclass(superclass)
             .addModifiers(INTERNAL)
             .addSuperinterface(moduleLoader)
-            .addSuperclassConstructorParameter(CodeBlock.of("%T::class.java", sourceClassName))
+            //.addSuperclassConstructorParameter(CodeBlock.of("%T::class.java", sourceClassName))
             .addType(
                 TypeSpec.companionObjectBuilder()
                     .apply {
@@ -395,29 +395,23 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                                 }
                             }
                             addStatement("var %N: %T = null", e.field(), type.copy(nullable = true))
-                            addStatement("var %N = false", e.updated())
+                            addStatement("var %N : Boolean = false", e.updated())
                         }
                     }
+                    .addStatement(
+                        "var _token_ : JsonToken? = currentToken"
+                    )
                     //generate while
                     .addStatement(
-                        "while (currentToken != %T && currentToken != %T) { ⇥",
-                        ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_OBJECT"),
-                        ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_ARRAY")
+                        "while (_token_?.isStructEnd != true) { ⇥"
                     )
                     .addStatement(
-                        "if(currentToken != %T) { nextToken() }",
+                        "if(_token_ != %T) {\n_token_ = nextToken()\nif (_token_?.isStructEnd == true) break\n}\n",
                         ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.FIELD_NAME")
                     )
-
-                    .addStatement(
-                        "if (currentToken == %T || currentToken == %T) { break } ",
-                        ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_OBJECT"),
-                        ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.END_ARRAY")
-                    )
-                    .addStatement("val fieldName = currentName")
-                    .addStatement("nextToken()")
-                    //.addStatement("if (currentToken == null || fieldName == null) { break } ")
-                    .addStatement("when (fieldName) {⇥ ")
+                    .addStatement("val _fieldName_ = currentName")
+                    .addStatement("_token_ = nextToken()")
+                    .addStatement("when (_fieldName_) {⇥ ")
                     //generate set
                     .apply {
                         properties.forEach { e ->
@@ -426,12 +420,12 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                             val type = asTypeName(e)
                             val writeMethod = when (type.copy(nullable = false).toString()) {
                                 "java.lang.String" -> CodeBlock.of("text")
-                                "java.lang.Boolean", "boolean" -> CodeBlock.of("booleanValue")
-                                "java.lang.Integer", "int" -> CodeBlock.of("intValue")
-                                "java.lang.Long", "long" -> CodeBlock.of("longValue")
-                                "java.lang.Short", "short" -> CodeBlock.of("shortValue")
-                                "java.lang.Float", "float" -> CodeBlock.of("floatValue")
-                                "java.lang.Double", "double" -> CodeBlock.of("doubleValue")
+                                "java.lang.Boolean", "boolean", "kotlin.Boolean" -> CodeBlock.of("booleanValue")
+                                "java.lang.Integer", "int", "kotlin.Int" -> CodeBlock.of("intValue")
+                                "java.lang.Long", "long", "kotlin.Long" -> CodeBlock.of("longValue")
+                                "java.lang.Short", "short", "kotlin.Short" -> CodeBlock.of("shortValue")
+                                "java.lang.Float", "float", "kotlin.Float" -> CodeBlock.of("floatValue")
+                                "java.lang.Double", "double", "kotlin.Double" -> CodeBlock.of("doubleValue")
                                 "java.math.BigInteger" -> CodeBlock.of("bigIntegerValue")
                                 "java.math.BigDecimal" -> CodeBlock.of("decimalValue")
                                 else -> if (asTypeName(e) is ParameterizedTypeName) {
@@ -441,7 +435,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                                 }
                             }
                             addStatement(
-                                "%S -> {\n%N = if(currentToken == JsonToken.VALUE_NULL) null\n else p.%L;\n%N = true\n}",
+                                "%S -> {\n%N = if(_token_ == JsonToken.VALUE_NULL) null\n else p.%L;\n%N = true\n}",
                                 jsonField,
                                 propertyName,
                                 writeMethod,
@@ -449,14 +443,12 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                             )
                         }
                         addStatement(
-                            "else -> {\nif (currentToken == %T || currentToken == %T)\np.skipChildren()\nnextToken()\n}",
-                            ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.START_OBJECT"),
-                            ClassName.bestGuess("com.fasterxml.jackson.core.JsonToken.START_ARRAY")
+                            "else -> {\nif (_token_?.isStructStart == true)\np.skipChildren()\nnextToken()\n}"
                         )
                     }
                     //generate end while
                     .addStatement("}⇤ ")
-                    .addStatement("}⇤ ")
+                    .addStatement("_token_ = currentToken\n}⇤ ")
                     .apply {
                         val parameters =
                             parametersOf(element.enclosedElements.first { it.kind == ElementKind.CONSTRUCTOR } as ExecutableElement)
