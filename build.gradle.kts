@@ -3,9 +3,10 @@ import org.jetbrains.dokka.gradle.DokkaTask
 
 plugins {
     base
-    kotlin("jvm") version "1.3.10" apply false
+    kotlin("jvm") version "1.5.0" apply false
     `maven-publish`
     signing
+    id("org.jetbrains.dokka") version "1.4.32"
 }
 
 allprojects {
@@ -28,12 +29,6 @@ dependencies {
     }
 }
 
-buildscript {
-    dependencies {
-        classpath("org.jetbrains.dokka", "dokka-gradle-plugin", "0.9.17")
-    }
-}
-
 subprojects {
 
     val projectName: String by project
@@ -46,9 +41,8 @@ subprojects {
         plugin("org.jetbrains.dokka")
     }
 
-    tasks.withType<DokkaTask> {
-        outputFormat = "html"
-        outputDirectory = "$buildDir/docs/kdoc"
+    dependencies {
+        dokkaHtmlPlugin("org.jetbrains.dokka:kotlin-as-java-plugin:1.4.32")
     }
 
     val sourcesJar by tasks.registering(Jar::class) {
@@ -57,9 +51,9 @@ subprojects {
     }
 
     val javadocJar by tasks.registering(Jar::class) {
-        dependsOn(tasks.withType<DokkaTask>())
+        dependsOn("dokkaJavadoc")
         classifier = "javadoc"
-        from("$buildDir/docs/kdoc")
+        from("$buildDir/dokka")
     }
 
     publishing {

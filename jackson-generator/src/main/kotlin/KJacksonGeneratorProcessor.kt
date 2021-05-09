@@ -122,7 +122,7 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                 buildReflectType(typeArgumentReflected(type)!!)
             )
         } else if (type.isMap && (type.type as? ParameterizedTypeName)?.typeArguments?.size == 2) {
-            log(type.javaClass)
+            //log(type.javaClass)
             CodeBlock.of(
                 "serializers.config.typeFactory.constructMapType(\n" +
                         "%T::class.java,\n%L,\n%L\n)",
@@ -381,16 +381,19 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                             val type = javaToKotlinType(e).run {
                                 val paramType = (this as? com.squareup.kotlinpoet.ParameterizedTypeName)
                                 when (paramType?.rawType?.canonicalName) {
-                                    "kotlin.collections.Set" -> ClassName.bestGuess("kotlin.collections.MutableSet").parameterizedBy(
-                                        paramType.typeArguments.first()
-                                    )
-                                    "kotlin.collections.List" -> ClassName.bestGuess("kotlin.collections.MutableList").parameterizedBy(
-                                        paramType.typeArguments.first()
-                                    )
-                                    "kotlin.collections.Map" -> ClassName.bestGuess("kotlin.collections.MutableMap").parameterizedBy(
-                                        paramType.typeArguments.first(),
-                                        paramType.typeArguments[1]
-                                    )
+                                    "kotlin.collections.Set" -> ClassName.bestGuess("kotlin.collections.MutableSet")
+                                        .parameterizedBy(
+                                            paramType.typeArguments.first()
+                                        )
+                                    "kotlin.collections.List" -> ClassName.bestGuess("kotlin.collections.MutableList")
+                                        .parameterizedBy(
+                                            paramType.typeArguments.first()
+                                        )
+                                    "kotlin.collections.Map" -> ClassName.bestGuess("kotlin.collections.MutableMap")
+                                        .parameterizedBy(
+                                            paramType.typeArguments.first(),
+                                            paramType.typeArguments[1]
+                                        )
                                     else -> this
                                 }
                             }
@@ -450,11 +453,13 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                     .addStatement("}⇤ ")
                     .addStatement("_token_ = currentToken\n}⇤ ")
                     .apply {
-                        val parameters =
-                            parametersOf(element.enclosedElements.first { it.kind == ElementKind.CONSTRUCTOR } as ExecutableElement)
+                        val constructor =
+                            element.enclosedElements.firstOrNull { it.kind == ElementKind.CONSTRUCTOR && (it as? ExecutableElement)?.parameters?.isNotEmpty() == true } as? ExecutableElement
+                        val parameters = if (constructor != null) {
+                            parametersOf(constructor)
                                 .mapNotNull {
-                                    log(it)
-                                    log(it.defaultValue)
+                                    //log(it)
+                                    //log(it.defaultValue)
                                     val p = properties.firstOrNull { e -> e.simpleName.toString() == it.name }
                                     if (p == null) {
                                         null
@@ -462,11 +467,14 @@ internal class KJacksonGeneratorProcessor : KGenerator() {
                                         "${it.name} = ${it.field()}${if (asTypeName(p).isNullable) "" else "!!"}"
                                     }
                                 }
+                        } else {
+                            null
+                        }
                         addStatement(
                             "return if(%L)\n%T(%L)\nelse {\n%L\n}",
                             properties.joinToString(" && ") { it.updated() },
                             sourceClassName,
-                            parameters.joinToString(),
+                            parameters?.joinToString() ?: "",
                             CodeBlock.of(
                                 "val map·=·mutableMapOf<KParameter,·Any?>()\n"
                                         + "${properties.joinToString("\n") { "if(${it.updated()})\nmap[parameters.getValue(\"${it.simpleName}\")] = ${it.field()}" }} \n"

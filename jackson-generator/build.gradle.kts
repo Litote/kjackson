@@ -12,12 +12,12 @@ plugins {
 }
 
 dependencies {
-    compile(kotlin("stdlib"))
-    compile(project(":jackson-module-loader"))
-    compile(project(":jackson-data"))
-    compile("org.litote", "kgenerator", kgenerator)
-    compile("org.litote", "kreflect", kreflect)
-    compile("com.fasterxml.jackson.module", "jackson-module-kotlin", jackson)
+    implementation(kotlin("stdlib"))
+    implementation(project(":jackson-module-loader"))
+    implementation(project(":jackson-data"))
+    implementation("org.litote", "kgenerator", kgenerator)
+    implementation("org.litote", "kreflect", kreflect)
+    implementation("com.fasterxml.jackson.module", "jackson-module-kotlin", jackson)
 
     testImplementation("org.jetbrains.kotlin", "kotlin-test-junit5", kotlinVersion)
     testImplementation("org.junit.jupiter", "junit-jupiter-engine", junit)

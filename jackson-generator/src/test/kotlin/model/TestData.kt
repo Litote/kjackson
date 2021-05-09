@@ -28,7 +28,7 @@ import java.util.Locale
  */
 @JacksonData
 data class TestData(
-    @JsonProperty("set2")
+    @get:JsonProperty("set2")
     val set: Set<SimpleReferencedData> = emptySet(),
     val list: List<List<Boolean>> = emptyList(),
     val nullableList: List<List<SimpleReferencedData?>>? = emptyList(),

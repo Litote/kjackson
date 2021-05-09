@@ -1,7 +1,7 @@
 val jackson: String by project
 
 dependencies {
-    compile(kotlin("stdlib"))
-    compile("com.fasterxml.jackson.core", "jackson-databind", jackson)
+    implementation(kotlin("stdlib"))
+    implementation("com.fasterxml.jackson.core", "jackson-databind", jackson)
 }
 
